@@ -1,0 +1,122 @@
+\documentclass[11pt]{ctexart}
+\usepackage[top=2cm, bottom=2cm, left=2cm, right=2cm]{geometry}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+\begin{document}
+    \begin{algorithm}
+        \caption{欧式期权二叉树模型定价}
+        \begin{algorithmic}[1] %每行显示行号
+            \Require $S_0$初始股价，$K$期权执行价，$r$无风险利率，$T$到期时间，$N$期数，$u,d$股价上涨或下跌的比率，$is\_put$是否看跌期权，$is\_am$是否美式期权，$is\_bar$是否障碍期权，$is\_down$是否向下期权，$is\_in$是否敲入期权，$B$障碍价格
+            \Ensure $payoffs$期权价格
+            \Function {StockOption}{$S_0, K, r, T, N, u,d,is\_put,is\_am,is\_bar,is\_down,is\_in,B$}
+                \State $is\_call \gets$ not $is\_put$; $is\_eu \gets$ not $is\_am$;
+                \State $is\_up \gets$ not $is\_down$; $is\_out \gets$ not $is\_in$;
+                \State $dt \gets T/N$; $df \gets \exp(-r \times dt)$
+            \EndFunction
+            \State
+            \Function{BinomialEuropeanOption}{$StockOption$}
+                \State $M \gets N+1$; $qu \gets (\exp(r \times df) - d) / (u-d)$;
+                \State $qd \gets 1-qu$; $STs \gets []$;
+                \For{$i = 0 \to M - 1$}
+                    \State $STs[i] \gets S_0 \times u^{N-i} \times d^{i}$
+                \EndFor
+                \If{$is\_call$}
+                    \State $payoffs \gets \max(0, STs - K)$
+                \Else
+                    \State $payoffs \gets \max(0, K - STs)$
+                \EndIf
+                \For{$i = 0 \to N - 1$}
+                    \State $payoffs \gets (payoffs[:-1]\times qu + payoffs[1:]\times qd) \times df$
+                \EndFor\\
+                \Return{$payoffs[0]$}
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+    \begin{algorithm}
+        \caption{美式(含欧式)期权二叉树模型定价}
+        \begin{algorithmic}[1] %每行显示行号
+            \Require $S_0$初始股价，$K$期权执行价，$r$无风险利率，$T$到期时间，$N$期数，$u,d$股价上涨或下跌的比率，$is\_put$是否看跌期权，$is\_am$是否美式期权，$is\_bar$是否障碍期权，$is\_down$是否向下期权，$is\_in$是否敲入期权，$B$障碍价格
+            \Ensure $payoffs$期权价格
+            \Function {StockOption}{$S_0, K, r, T, N, u,d,is\_put,is\_am,is\_bar,is\_down,is\_in,B$}
+                \State $is\_call \gets$ not $is\_put$; $is\_eu \gets$ not $is\_am$;
+                \State $is\_up \gets$ not $is\_down$; $is\_out \gets$ not $is\_in$;
+                \State $dt \gets T/N$; $df \gets \exp(-r \times dt)$
+            \EndFunction
+            \State
+            \Function{BinomialTreeOption}{$StockOption$}
+                \State $qu \gets (\exp(r \times df) - d) / (u-d)$; $qd \gets 1-qu$; $STs \gets [[S_0]]$
+                \For{$i = 0 \to N - 1$}
+                    \State $prev\_branches \gets STs[-1]$
+                    \State $st \gets [prev\_branches \times u, [prev\_branches[-1] \times d]]$
+                    \State $STs$.append($st$)
+                \EndFor
+                \If{$is\_call$}
+                    \State $payoffs \gets [\max(0, STs - K)]$
+                \Else
+                    \State $payoffs \gets [\max(0, K - STs)]$
+                \EndIf
+                \For{$i = N-1 \to 0$}
+                    \State $po \gets (payoffs[N-i-1][:-1]\times qu + payoffs[N-i-1][1:]\times qd) \times df$
+                    \State $payoffs$.append($po$)
+                    \If{not $is\_eu$}
+                        \If{$is\_call$}
+                            \State $po \gets \max(payoffs[N-i], STs[i] - K)$
+                        \Else
+                            \State $po \gets \max(payoffs[N-i], K - STs[i])$
+                        \EndIf
+                        \State $payoffs[N-i] \gets po$
+                    \EndIf
+                \EndFor\\
+                \Return{$payoffs[-1][0]$}
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+    \begin{algorithm}
+        \caption{障碍期权二叉树模型定价}
+        \begin{algorithmic}[1] %每行显示行号
+            \Require $S_0$初始股价，$K$期权执行价，$r$无风险利率，$T$到期时间，$N$期数，$u,d$股价上涨或下跌的比率，$is\_put$是否看跌期权，$is\_am$是否美式期权，$is\_bar$是否障碍期权，$is\_down$是否向下期权，$is\_in$是否敲入期权，$B$障碍价格
+            \Ensure $payoffs$期权价格
+            \Function {StockOption}{$S_0, K, r, T, N, u,d,is\_put,is\_am,is\_bar,is\_down,is\_in,B$}
+                \State $is\_call \gets$ not $is\_put$; $is\_eu \gets$ not $is\_am$;
+                \State $is\_up \gets$ not $is\_down$; $is\_out \gets$ not $is\_in$;
+                \State $dt \gets T/N$; $df \gets \exp(-r \times dt)$
+            \EndFunction
+            \State
+            \Function{BinomialBarrierOption}{$StockOption$}
+                \State $qu \gets (\exp(r \times df) - d) / (u-d)$; $qd \gets 1-qu$; $STs \gets [[S_0]]$
+                \For{$i = 0 \to N - 1$}
+                    \State $prev\_branches \gets STs[-1]$
+                    \State $st \gets [prev\_branches \times u, [prev\_branches[-1] \times d]]$;  $STs$.append($st$)
+                \EndFor
+                \If{$is\_call$} $\,payoffs \gets [\max(0, STs - K)]$
+                \Else $\,\,payoffs \gets [\max(0, K - STs)]$
+                \EndIf
+                \For{$i = N-1 \to 0$}
+                    \If{$is\_bar$}
+                        \For{$tf = zip(STs[i+1] > B, [0 : i+2])$}
+                            \If{$tf[0]$ and $is\_up$ and $is\_out$} $\,payoffs[N-i-1][tf[1]] = 0$
+                            \ElsIf{$!tf[0]$ and $is\_up$ and $!is\_out$} $\,payoffs[N-i-1][tf[1]] = 0$
+                            \ElsIf{$!tf[0]$ and $!is\_up$ and $is\_out$} $\,payoffs[N-i-1][tf[1]] = 0$
+                            \ElsIf{$tf[0]$ and $!is\_up$ and $!is\_out$} $\,payoffs[N-i-1][tf[1]] = 0$
+                            \EndIf
+                        \EndFor
+                    \EndIf
+                    \State $po \gets (payoffs[N-i-1][:-1]\times qu + payoffs[N-i-1][1:]\times qd) \times df$; $payoffs$.append($po$)
+                    \If{not $is\_eu$}
+                        \If{$is\_call$} $\,po \gets \max(payoffs[N-i], STs[i] - K)$
+                        \Else $\,\,po \gets \max(payoffs[N-i], K - STs[i])$
+                        \EndIf
+                        \State $payoffs[N-i] \gets po$
+                    \EndIf
+                \EndFor\\
+                \Return{$payoffs[-1][0]$}
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+\end{document}
